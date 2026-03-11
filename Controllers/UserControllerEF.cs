@@ -3,6 +3,7 @@ using DotnetAPI.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using AutoMapper;
 
 namespace DotnetAPI.Controllers
 {
@@ -11,10 +12,13 @@ namespace DotnetAPI.Controllers
     public class UserControllerEF : ControllerBase
     {
          DataContextEF dataEF; 
-
+        IMapper _mapper;
         public UserControllerEF(IConfiguration config)
         {
             dataEF= new DataContextEF(config); 
+            _mapper = new Mapper(new MapperConfiguration(cfg =>{
+                cfg.CreateMap<UserDTO, User>();
+                }));
         }
 
     [HttpGet("GetUsers")]
@@ -54,13 +58,9 @@ namespace DotnetAPI.Controllers
     [HttpPost("AddUser")]
     public IActionResult AddUser(UserDTO user)
         {
-            User user1 = new User(); 
+            User user1 = _mapper.Map<User>(user); 
             // User? user1 = dataEF.Users.Where(u=> user.UserId == u.UserId).FirstOrDefault<User>(); 
-                user1.Active = user.Active; 
-                user1.Email = user.Email; 
-                user1.FirstName = user.FirstName; 
-                user1.LastName = user.LastName; 
-                user1.Gender = user.Gender; 
+         
                 dataEF.Add(user1); 
                 if(dataEF.SaveChanges() > 0)
                     return Ok(); 

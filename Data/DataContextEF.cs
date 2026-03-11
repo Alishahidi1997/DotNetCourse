@@ -1,18 +1,23 @@
 
 
+using AutoMapper;
 using DotnetAPI.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 
 namespace DotnetAPI.Data
 {
+ 
     class DataContextEF: DbContext
     {
         private readonly IConfiguration _config; 
+        
         public DataContextEF(IConfiguration config)
         {
             _config = config; 
+        
         }
 
         public virtual DbSet<User> Users{get; set; }

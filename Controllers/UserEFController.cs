@@ -11,11 +11,12 @@ namespace DotnetAPI.Controllers
     [ApiController]
     public class UserControllerEF : ControllerBase
     {
-         DataContextEF dataEF; 
         IMapper _mapper;
-        public UserControllerEF(IConfiguration config)
+        IUserRepository _userRepository; 
+        public UserControllerEF(IConfiguration config, IUserRepository userRepository)
         {
-            dataEF= new DataContextEF(config); 
+            
+            _userRepository = userRepository; 
             _mapper = new Mapper(new MapperConfiguration(cfg =>{
                 cfg.CreateMap<UserDTO, User>();
                 }));
@@ -25,22 +26,19 @@ namespace DotnetAPI.Controllers
     public IEnumerable<User> GetUsers()
     {
         
-        return dataEF.Users.ToList<User>(); 
+        return _userRepository.GetUsers(); 
         
     }
     [HttpGet("GetUserSingle")]
     public User GetUserSingle(int userId)
     {
-        User? user = dataEF.Users
-        .Where(u => u.UserId == userId).FirstOrDefault<User>(); 
-        if(user!=null)
-            return user;
-        return null; 
+        User? user = _userRepository.GetUserSingle(userId);
+        return user; 
     }
-    [HttpPut("EditUser/{user}")]
+    [HttpPut("EditUser")]
     public IActionResult EditUser(User user)
         {
-            User? user1 = dataEF.Users.Where(u=> user.UserId == u.UserId).FirstOrDefault<User>(); 
+            User? user1 = GetUserSingle(user.UserId); 
             if (user1 != null)
             {
                 user1.Active = user.Active; 
@@ -48,11 +46,11 @@ namespace DotnetAPI.Controllers
                 user1.FirstName = user.FirstName; 
                 user1.LastName = user.LastName; 
                 user1.Gender = user.Gender; 
-                if(dataEF.SaveChanges() > 0)
+                if(_userRepository.Save())
                     return Ok(); 
-                throw new Exception("No User Found");
+                throw new Exception("Save error");
             }
-            throw new Exception("No User Found");
+            throw new Exception("No User Found111");
             
         }
     [HttpPost("AddUser")]
@@ -61,19 +59,19 @@ namespace DotnetAPI.Controllers
             User user1 = _mapper.Map<User>(user); 
             // User? user1 = dataEF.Users.Where(u=> user.UserId == u.UserId).FirstOrDefault<User>(); 
          
-                dataEF.Add(user1); 
-                if(dataEF.SaveChanges() > 0)
+                _userRepository.AddEntity<User>(user1); 
+                if(_userRepository.Save())
                     return Ok(); 
                 throw new Exception("No User Found");
         }
     [HttpPost("DeleteUser")]
     public IActionResult DeleteUser(int userId)
         {
-            User? user1 = dataEF.Users.Where(u=> userId == u.UserId).FirstOrDefault<User>(); 
+            User? user1 = GetUserSingle(userId);
             if (user1 != null)
             {
-                dataEF.Users.Remove(user1);
-                if(dataEF.SaveChanges() > 0)
+                _userRepository.RemoveEntity<User>(user1);
+                if(_userRepository.Save())
                     return Ok(); 
                 throw new Exception("No User Found");
             }

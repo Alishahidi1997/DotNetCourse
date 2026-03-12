@@ -9,9 +9,15 @@ using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation; 
 using System.Text;
 using System.Data;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+
+using Microsoft.IdentityModel.Tokens;
 
 namespace DotnetAPI.Controllers
 {
+    [Authorize]
     [Route("[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
@@ -23,12 +29,12 @@ namespace DotnetAPI.Controllers
             _dp = new DataContextDapper(config); 
             _config = config; 
         }
-
+        [AllowAnonymous]
         [HttpPost("Register")]
         public IActionResult RegisterUser(UserRegistrationDto userRegDTO)
         {
             if(userRegDTO.Password == userRegDTO.PasswordConfirmation){
-                string sqlCheckEmail = $"Select Email from TutorialAppSchema.Auth Where Email = {userRegDTO.UserName}"; 
+                string sqlCheckEmail = $"Select UserName from TutorialAppSchema.Auth Where UserName = '{userRegDTO.UserName}'"; 
                 if(_dp.LoadData<string>(sqlCheckEmail).Count() == 0){
                     byte[] passwordSalt = new byte[128/8]; 
                     using(RandomNumberGenerator rng = RandomNumberGenerator.Create())
@@ -37,9 +43,9 @@ namespace DotnetAPI.Controllers
                     }
                     byte[] passwordHash = GetPasswordHash(userRegDTO.Password, passwordSalt);
                     string sqlAddAuth = $@"Insert INTO TutorialAppSchema.Auth 
-                    ([Email],
+                    ([UserName],
                     [PasswordHash], 
-                    [PasswordSalt]) Values('{userRegDTO.UserName}',{@passwordHash},{@passwordSalt} )";
+                    [PasswordSalt]) Values('{userRegDTO.UserName}',@passwordHash,@passwordSalt )";
                     List<SqlParameter> sqlParam = new List<SqlParameter>(); 
                     SqlParameter passwordSalt1 = new SqlParameter("@PasswordSalt", SqlDbType.VarBinary); 
                     passwordSalt1.Value = passwordSalt; 
@@ -56,7 +62,7 @@ namespace DotnetAPI.Controllers
                 
         }
 
-          private byte[] GetPasswordHash(string password, byte[] passwordSalt)
+        private byte[] GetPasswordHash(string? password, byte[] passwordSalt)
         {
             string passwordSaltPlusString = _config.GetSection("AppSettings:PasswordKey").Value +
                 Convert.ToBase64String(passwordSalt);
@@ -69,12 +75,21 @@ namespace DotnetAPI.Controllers
                 numBytesRequested: 256 / 8
             );
         }
-
+        [AllowAnonymous]
         [HttpPost("Login")]
         public IActionResult LoginUser(UserForLoginDto userForLogin)
         {
-            
-                return Ok(); 
+            string sqlUserName = $"select [PasswordHash], [PasswordSalt] from TutorialAppSchema.Auth Where UserName = '{userForLogin.UserName}'"; 
+            UserForLoginConfirmationDto user = _dp.LoadDataSingle<UserForLoginConfirmationDto>(sqlUserName);
+            byte[] passwordHash = GetPasswordHash(userForLogin.Password, user.PasswordSalt); 
+            for(int i = 0; i < passwordHash.Length; i ++)
+            {
+                if (passwordHash[i] != user.PasswordHash[i])
+                {
+                    return StatusCode(401,"Incorrect Password"); 
+                }
+            }
+            return Ok(); 
                 
         }
     }

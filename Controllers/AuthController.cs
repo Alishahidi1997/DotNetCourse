@@ -33,6 +33,7 @@ namespace DotnetAPI.Controllers
         [HttpPost("Register")]
         public IActionResult RegisterUser(UserRegistrationDto userRegDTO)
         {
+            
             if(userRegDTO.Password == userRegDTO.PasswordConfirmation){
                 string sqlCheckEmail = $"Select UserName from TutorialAppSchema.Auth Where UserName = '{userRegDTO.UserName}'"; 
                 if(_dp.LoadData<string>(sqlCheckEmail).Count() == 0){
@@ -53,8 +54,24 @@ namespace DotnetAPI.Controllers
                     passwordHash1.Value = passwordHash; 
                     sqlParam.Add(passwordHash1); 
                     sqlParam.Add(passwordSalt1); 
-                    if(_dp.ExecuteWithParams(sqlAddAuth, sqlParam) > 0)
-                        return Ok();
+                    if(_dp.ExecuteWithParams(sqlAddAuth, sqlParam) > 0){
+                        string sql = @"INSERT INTO TutorialAppSchema.Users(
+                            [FirstName],
+                            [LastName],
+                            [Email],
+                            [Gender],
+                            [Active]
+                        ) VALUES (" +
+                            "'" + userRegDTO.FirstName + 
+                            "', '" + userRegDTO.LastName +
+                            "', '" + userRegDTO.Email + 
+                            "', '" + userRegDTO.Gender + 
+                            "', '" + 1 + 
+                        "')";
+                        if(_dp.ExecuteWithRow(sql)) 
+                            return Ok();
+                        throw new Exception("Failed to Add user!");
+                    }
                 }
                 throw new Exception("user with the same email already exists"); 
             } 
@@ -79,12 +96,13 @@ namespace DotnetAPI.Controllers
         [HttpPost("Login")]
         public IActionResult LoginUser(UserForLoginDto userForLogin)
         {
+            
             string sqlUserName = $"select [PasswordHash], [PasswordSalt] from TutorialAppSchema.Auth Where UserName = '{userForLogin.UserName}'"; 
-            UserForLoginConfirmationDto user = _dp.LoadDataSingle<UserForLoginConfirmationDto>(sqlUserName);
-            byte[] passwordHash = GetPasswordHash(userForLogin.Password, user.PasswordSalt); 
+            UserForLoginConfirmationDto user1 = _dp.LoadDataSingle<UserForLoginConfirmationDto>(sqlUserName);
+            byte[] passwordHash = GetPasswordHash(userForLogin.Password, user1.PasswordSalt); 
             for(int i = 0; i < passwordHash.Length; i ++)
             {
-                if (passwordHash[i] != user.PasswordHash[i])
+                if (passwordHash[i] != user1.PasswordHash[i])
                 {
                     return StatusCode(401,"Incorrect Password"); 
                 }
